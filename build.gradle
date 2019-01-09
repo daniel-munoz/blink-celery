@@ -1,0 +1,47 @@
+defaultTasks 'build'
+
+task clean(type:Exec) {
+    commandLine "git", "clean", "-dfx"
+}
+
+task getversion() {
+    def stdout = new ByteArrayOutputStream()
+    exec {
+        commandLine "sh", "-c", "git describe --tags --long | sed 's/v\\([0-9]\\+\\.[0-9]\\+\\)-\\([0-9]\\+\\)-.*/\\1.\\2/'"
+        standardOutput = stdout
+    }
+    version = stdout.toString().trim()
+    print "$version"
+}
+
+task virtualenv(type:Exec) {
+    commandLine 'virtualenv', '-p', 'python3', '.'
+}
+
+task installdependencies(type:Exec) {
+    commandLine 'bin/pip', 'install', 'celery', 'blink-cameras', 'flake8', 'pytest', 'setuptools'
+}
+
+task test(type:Exec) {
+    commandLine 'bin/pytest', 'tests'
+}
+
+task lint(type:Exec) {
+    commandLine 'bin/flake8', 'blink_celery', 'tests'
+}
+
+task build(type:Exec) {
+    environment VERSION: "$version"
+    commandLine 'bin/python', 'setup.py', 'sdist', 'bdist_wheel'
+}
+
+task publish(type:Exec) {
+    commandLine 'twine', 'upload', 'dist/*'
+}
+
+installdependencies.dependsOn virtualenv
+getversion.dependsOn installdependencies
+lint.dependsOn getversion
+test.dependsOn lint
+build.dependsOn test
+publish.dependsOn build
